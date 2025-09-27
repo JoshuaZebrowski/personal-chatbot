@@ -1,0 +1,14 @@
+{
+  "name": "personal-chatbot",
+  "version": "1.0.0",
+  "description": "Personal AI Chatbot using Azure Foundry",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js && node serve.js",
+    "serve": "node serve.js",
+    "serve-python": "python -m http.server 8000"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

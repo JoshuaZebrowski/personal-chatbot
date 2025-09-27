@@ -1,0 +1,20 @@
+# Environment files
+.env
+.env.local
+
+# Generated config file
+config.js
+
+# Dependencies
+node_modules/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
