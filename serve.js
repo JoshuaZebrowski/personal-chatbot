@@ -57,17 +57,14 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}/`);
-    console.log(`📁 Serving files from: ${__dirname}`);
-    console.log(`⏰ Started at: ${new Date().toLocaleString()}`);
-    console.log(`\n🌐 Open your browser to: http://localhost:${PORT}`);
+    console.log(`\nLocal: http://localhost:${PORT}/`);
 });
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
-    console.log('\n👋 Server shutting down gracefully...');
+    console.log('\nServer shutting down');
     server.close(() => {
-        console.log('✅ Server closed');
+        console.log('Server closed');
         process.exit(0);
     });
 });

@@ -171,15 +171,19 @@ function setLoading(loading) {
 
 // Function to send message to Azure OpenAI
 async function sendMessage() {
+    console.log('🚀 sendMessage() called');
     const message = userInput.value.trim();
+    console.log('📝 User message:', message);
 
     // Validation
     if (!message) {
+        console.warn('⚠️ Empty message, showing error');
         addMessage('Please enter a message.', 'error');
         return;
     }
 
     if (isLoading) {
+        console.log('⏳ Already loading, ignoring request');
         return;
     }
 
@@ -207,6 +211,9 @@ async function sendMessage() {
             model: CONFIG.AZURE_API_MODEL
         };
 
+        console.log('📤 Sending request to:', CONFIG.AZURE_API_ENDPOINT);
+        console.log('📋 Request body:', requestBody);
+
         // Make the API call using environment variable API key
         const response = await fetch(CONFIG.AZURE_API_ENDPOINT, {
             method: 'POST',
@@ -217,22 +224,33 @@ async function sendMessage() {
             body: JSON.stringify(requestBody)
         });
 
+        console.log('📥 Response status:', response.status, response.statusText);
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
+            console.error('❌ API request failed:', {
+                status: response.status,
+                statusText: response.statusText,
+                errorData
+            });
             throw new Error(`API request failed: ${response.status} ${response.statusText}. ${errorData.error?.message || ''}`);
         }
 
         const data = await response.json();
+        console.log('✅ API response data:', data);
 
         // Handle the response
         if (data.error) {
+            console.error('❌ API returned error:', data.error);
             throw new Error(data.error.message || 'Unknown API error');
         }
 
         if (data.choices && data.choices.length > 0) {
             const aiResponse = data.choices[0].message.content;
+            console.log('🤖 AI response:', aiResponse);
             addMessage(aiResponse, 'ai');
         } else {
+            console.error('❌ No choices in response');
             throw new Error('No response received from the AI model');
         }
 
