@@ -83,7 +83,7 @@ header p {
 .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 20px 20px 30px 20px;
     background: #1a1d23;
 }
 
@@ -115,7 +115,7 @@ header p {
     background: rgba(76, 110, 245, 0.1);
     color: #74c0fc;
     text-align: center;
-    margin: 0 auto;
+    margin: 0 auto 30px auto;
     font-style: italic;
     border: 1px solid rgba(76, 110, 245, 0.2);
 }
