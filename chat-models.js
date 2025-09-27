@@ -23,8 +23,9 @@ export class ChatMessage {
 
 // Chat session representation
 export class ChatSession {
-    constructor(sessionId = null) {
+    constructor(sessionId = null, name = null) {
         this.sessionId = sessionId || this.generateSessionId();
+        this.name = name || this.generateDefaultName();
         this.messages = [];
         this.createdAt = new Date().toISOString();
         this.updatedAt = new Date().toISOString();
@@ -32,6 +33,15 @@ export class ChatSession {
 
     generateSessionId() {
         return `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    generateDefaultName() {
+        return 'New Chat';
+    }
+
+    updateName(newName) {
+        this.name = newName || this.generateDefaultName();
+        this.updatedAt = new Date().toISOString();
     }
 
     addMessage(userMessage, systemResponse = null) {
@@ -83,6 +93,7 @@ export class ChatSession {
     toJSON() {
         return {
             sessionId: this.sessionId,
+            name: this.name,
             messages: this.messages.map(msg => msg.toJSON()),
             createdAt: this.createdAt,
             updatedAt: this.updatedAt
@@ -91,7 +102,7 @@ export class ChatSession {
 
     // Create from plain object (for deserialization)
     static fromJSON(data) {
-        const session = new ChatSession(data.sessionId);
+        const session = new ChatSession(data.sessionId, data.name);
         session.messages = data.messages.map(msgData => ChatMessage.fromJSON(msgData));
         session.createdAt = data.createdAt;
         session.updatedAt = data.updatedAt;

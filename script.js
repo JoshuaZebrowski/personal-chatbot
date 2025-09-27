@@ -1,6 +1,7 @@
 // Import configuration
 import { CONFIG } from './config.js';
 import { ChatHistoryManager } from './chat-history-manager.js';
+import { ChatSession } from './chat-models.js';
 
 // Global variables
 let isLoading = false;
@@ -371,12 +372,29 @@ window.startNewChat = startNewChat;
 window.clearAllSessions = clearAllSessions;
 window.loadSession = loadSessionFromSidebar;
 window.deleteSessionFromSidebar = deleteSessionFromSidebar;
+window.startEditingSessionName = startEditingSessionName;
+window.saveSessionName = saveSessionName;
+window.cancelEditSessionName = cancelEditSessionName;
 
 // ===== SIDEBAR FUNCTIONALITY =====
 
 // Initialize sidebar with session list
 async function initializeSidebar() {
     await refreshSessionList();
+    
+    // Prevent sidebar from closing when clicking inside it
+    sidebar.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // Close sidebar when clicking outside (on overlay or document)
+    document.addEventListener('click', (e) => {
+        if (sidebar.classList.contains('open') && 
+            !sidebar.contains(e.target) && 
+            !e.target.closest('.sidebar-toggle')) {
+            closeSidebar();
+        }
+    });
 }
 
 // Toggle sidebar visibility
@@ -393,6 +411,7 @@ function toggleSidebar() {
 async function openSidebar() {
     sidebar.classList.add('open');
     sidebarOverlay.classList.add('visible');
+    document.body.classList.add('sidebar-open');
     await refreshSessionList();
 }
 
@@ -400,6 +419,7 @@ async function openSidebar() {
 function closeSidebar() {
     sidebar.classList.remove('open');
     sidebarOverlay.classList.remove('visible');
+    document.body.classList.remove('sidebar-open');
 }
 
 // Start new chat session
@@ -518,19 +538,18 @@ async function refreshSessionList() {
                 minute: '2-digit' 
             });
             
-            // Get preview text from first user message
-            let previewText = 'New Chat';
-            if (session.messageCount > 0) {
-                // We'll need to load the session to get the first message
-                // For now, just use a generic preview
-                previewText = `Chat with ${session.messageCount} messages`;
+            // Use the session name or fall back to message count
+            let displayName = session.name || `Chat with ${session.messageCount} messages`;
+            if (session.messageCount === 0) {
+                displayName = session.name || 'New Chat';
             }
 
             return `
                 <div class="session-item ${isActive ? 'active' : ''}" 
-                     data-session-id="${session.sessionId}"
-                     style="cursor: pointer;">
-                    <div class="session-preview">${previewText}</div>
+                     data-session-id="${session.sessionId}">
+                    <div class="session-preview" 
+                         data-session-id="${session.sessionId}"
+                         title="Click to edit name">${displayName}</div>
                     <div class="session-meta">
                         <span class="session-date">${date} ${time}</span>
                         <div class="session-actions">
@@ -546,9 +565,29 @@ async function refreshSessionList() {
         // Add event listeners after creating the HTML
         sessionList.querySelectorAll('.session-item').forEach(item => {
             const sessionId = item.getAttribute('data-session-id');
+            
             item.addEventListener('click', (e) => {
-                // Don't trigger if clicking on delete button
-                if (!e.target.classList.contains('session-delete')) {
+                // Check what was clicked
+                const clickedElement = e.target;
+                
+                // Don't do anything if clicking on delete button or edit controls
+                if (clickedElement.classList.contains('session-delete') || 
+                    clickedElement.classList.contains('session-edit-btn')) {
+                    return;
+                }
+                
+                // If clicking on the session name (preview), start editing
+                if (clickedElement.classList.contains('session-preview') || 
+                    clickedElement.closest('.session-preview')) {
+                    // Don't load session if already editing
+                    if (!clickedElement.closest('.session-preview.editing')) {
+                        startEditingSessionName(sessionId);
+                    }
+                    return;
+                }
+                
+                // If clicking elsewhere in the session item, load the session
+                if (!e.target.closest('.session-preview.editing')) {
                     loadSessionFromSidebar(sessionId);
                 }
             });
@@ -590,4 +629,106 @@ async function getSessionPreview(sessionId) {
     } catch (error) {
         return 'Chat Session';
     }
+}
+
+// ===== SESSION NAME EDITING FUNCTIONALITY =====
+
+// Start editing a session name
+function startEditingSessionName(sessionId) {
+    const preview = document.querySelector(`.session-preview[data-session-id="${sessionId}"]`);
+    if (!preview || preview.classList.contains('editing')) return;
+
+    // Get the original session name by extracting only the text content, 
+    // excluding any button text that might be included
+    let currentName = preview.childNodes[0] ? preview.childNodes[0].textContent.trim() : preview.textContent.trim();
+    
+    // Remove any "Save" or "Cancel" text that might have been included
+    currentName = currentName.replace(/\s*(Save|Cancel)\s*/g, '').trim();
+    
+    preview.classList.add('editing');
+    
+    preview.innerHTML = `
+        <input type="text" class="session-name-input" value="${currentName}" 
+               data-original-name="${currentName}" 
+               data-session-id="${sessionId}"
+               maxlength="50">
+        <div class="session-edit-controls">
+            <button class="session-edit-btn save" onclick="saveSessionName('${sessionId}', event)">Save</button>
+            <button class="session-edit-btn cancel" onclick="cancelEditSessionName('${sessionId}', event)">Cancel</button>
+        </div>
+    `;
+
+    const input = preview.querySelector('.session-name-input');
+    input.focus();
+    input.select();
+
+    // Save on Enter, cancel on Escape
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveSessionName(sessionId, e);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEditSessionName(sessionId, e);
+        }
+    });
+}
+
+// Save the edited session name
+async function saveSessionName(sessionId, event) {
+    event.stopPropagation();
+    
+    const preview = document.querySelector(`.session-preview[data-session-id="${sessionId}"]`);
+    const input = preview.querySelector('.session-name-input');
+    
+    if (!input) return;
+
+    const newName = input.value.trim();
+    if (!newName) {
+        // If empty, cancel the edit
+        cancelEditSessionName(sessionId, event);
+        return;
+    }
+
+    try {
+        // Update the session name in storage
+        if (chatHistory.getCurrentSession()?.sessionId === sessionId) {
+            // Update current session
+            await chatHistory.updateCurrentSessionName(newName);
+        } else {
+            // Update a different session - need to load, update, and save
+            const sessionData = await chatHistory.storageProvider.loadSession(sessionId);
+            if (sessionData) {
+                const session = ChatSession.fromJSON(sessionData);
+                session.updateName(newName);
+                await chatHistory.storageProvider.saveSession(session);
+            }
+        }
+
+        // Update UI
+        preview.classList.remove('editing');
+        preview.innerHTML = newName;
+        
+        // Refresh the session list to reflect changes
+        await refreshSessionList();
+        
+        console.log('Updated session name:', newName);
+    } catch (error) {
+        console.error('Error saving session name:', error);
+        cancelEditSessionName(sessionId, event);
+    }
+}
+
+// Cancel editing session name
+function cancelEditSessionName(sessionId, event) {
+    event.stopPropagation();
+    
+    const preview = document.querySelector(`.session-preview[data-session-id="${sessionId}"]`);
+    const input = preview.querySelector('.session-name-input');
+    
+    if (!input) return;
+
+    const originalName = input.getAttribute('data-original-name');
+    preview.classList.remove('editing');
+    preview.innerHTML = originalName;
 }

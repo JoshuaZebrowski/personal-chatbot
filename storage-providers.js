@@ -87,6 +87,7 @@ export class LocalStorageProvider extends StorageProvider {
                 if (sessionData) {
                     sessions.push({
                         sessionId: sessionData.sessionId,
+                        name: sessionData.name,
                         createdAt: sessionData.createdAt,
                         updatedAt: sessionData.updatedAt,
                         messageCount: sessionData.messages.length

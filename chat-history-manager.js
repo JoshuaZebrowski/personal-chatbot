@@ -148,6 +148,23 @@ export class ChatHistoryManager {
         return this.currentSession;
     }
 
+    async updateCurrentSessionName(newName) {
+        if (!this.currentSession) {
+            console.error('No current session to update name for');
+            return false;
+        }
+
+        try {
+            this.currentSession.updateName(newName);
+            await this.saveCurrentSession();
+            console.log('Updated session name to:', newName);
+            return true;
+        } catch (error) {
+            console.error('Failed to update session name:', error);
+            return false;
+        }
+    }
+
     // Method to switch storage providers (for future Cosmos DB integration)
     async switchStorageProvider(newProvider) {
         // Save current session with old provider before switching
