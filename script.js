@@ -73,15 +73,108 @@ function formatAIResponse(content) {
             </div>`;
         })
         // Handle inline code
-        .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+        .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+        
+    // Split content into lines for better processing
+    const lines = formatted.split('\n');
+    const processedLines = [];
+    let inList = false;
+    let inOrderedList = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        const trimmedLine = line.trim();
+        
+        // Skip empty lines but preserve spacing context
+        if (!trimmedLine) {
+            if (inList || inOrderedList) {
+                // End current list
+                inList = false;
+                inOrderedList = false;
+            }
+            processedLines.push('</p><p>'); // Create paragraph break
+            continue;
+        }
         
         // Handle headers (all levels)
-        .replace(/^##### (.*$)/gm, '<h5 class="ai-header h5">$1</h5>')
-        .replace(/^#### (.*$)/gm, '<h4 class="ai-header h4">$1</h4>')
-        .replace(/^### (.*$)/gm, '<h3 class="ai-header h3">$1</h3>')
-        .replace(/^## (.*$)/gm, '<h2 class="ai-header h2">$1</h2>')
-        .replace(/^# (.*$)/gm, '<h1 class="ai-header h1">$1</h1>')
+        if (/^#{1,6}\s/.test(trimmedLine)) {
+            const level = trimmedLine.match(/^#+/)[0].length;
+            const text = trimmedLine.replace(/^#+\s/, '');
+            processedLines.push(`<h${level} class="ai-header h${level}">${text}</h${level}>`);
+            continue;
+        }
         
+        // Handle horizontal rules
+        if (/^[-_*]{3,}$/.test(trimmedLine)) {
+            processedLines.push('<hr class="section-divider">');
+            continue;
+        }
+        
+        // Handle blockquotes
+        if (/^>\s/.test(trimmedLine)) {
+            const quoteText = trimmedLine.replace(/^>\s/, '');
+            processedLines.push(`<blockquote class="ai-quote">${quoteText}</blockquote>`);
+            continue;
+        }
+        
+        // Handle ordered lists (1. 2. 3. or 1) 2) 3))
+        if (/^\d+[\.\)]\s/.test(trimmedLine)) {
+            const match = trimmedLine.match(/^(\d+[\.\)])\s+(.+)$/);
+            if (match) {
+                if (!inOrderedList) {
+                    processedLines.push('<ol class="ai-ordered-list">');
+                    inOrderedList = true;
+                }
+                processedLines.push(`<li class="ai-list-item">${match[2]}</li>`);
+                inList = false;
+                continue;
+            }
+        } else if (inOrderedList) {
+            processedLines.push('</ol>');
+            inOrderedList = false;
+        }
+        
+        // Handle unordered lists (-, *, +, •)
+        if (/^[-*+•]\s/.test(trimmedLine)) {
+            const listText = trimmedLine.replace(/^[-*+•]\s/, '');
+            if (!inList) {
+                processedLines.push('<ul class="ai-unordered-list">');
+                inList = true;
+            }
+            processedLines.push(`<li class="ai-list-item">${listText}</li>`);
+            inOrderedList = false;
+            continue;
+        } else if (inList) {
+            processedLines.push('</ul>');
+            inList = false;
+        }
+        
+        // Handle task lists (checkboxes)
+        if (/^[-*+]\s*\[([ xX])\]\s/.test(trimmedLine)) {
+            const match = trimmedLine.match(/^[-*+]\s*\[([ xX])\]\s+(.+)$/);
+            if (match) {
+                const isChecked = match[1].toLowerCase() === 'x';
+                const text = match[2];
+                processedLines.push(`<div class="task-item ${isChecked ? 'completed' : ''}">
+                    <span class="checkbox ${isChecked ? 'checked' : ''}">
+                        ${isChecked ? '✓' : '○'}
+                    </span>
+                    <span class="task-text">${text}</span>
+                </div>`);
+                continue;
+            }
+        }
+        
+        // Handle regular content
+        processedLines.push(line);
+    }
+    
+    // Close any open lists
+    if (inList) processedLines.push('</ul>');
+    if (inOrderedList) processedLines.push('</ol>');
+    
+    // Rejoin and continue with other formatting
+    formatted = processedLines.join('\n')
         // Handle bold and italic (must be done carefully to avoid conflicts)
         .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -90,63 +183,34 @@ function formatAIResponse(content) {
         // Handle links
         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="ai-link">$1 ↗</a>')
         
-        // Handle tables
-        .replace(/^\|(.+)\|\s*$/gm, (match, content) => {
-            const cells = content.split('|').map(cell => cell.trim());
-            return `<tr>${cells.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
-        })
-        
-        // Handle horizontal rules (multiple variations)
-        .replace(/^---+$/gm, '<hr class="section-divider">')
-        .replace(/^___+$/gm, '<hr class="section-divider">')
-        .replace(/^\*\*\*+$/gm, '<hr class="section-divider">')
-        
         // Handle strikethrough text
         .replace(/~~(.*?)~~/g, '<del class="strikethrough">$1</del>')
         
         // Handle highlighted text
         .replace(/==(.*?)==/g, '<mark class="highlight">$1</mark>')
         
-        // Handle blockquotes (including nested)
-        .replace(/^> (.+$)/gm, '<blockquote class="ai-quote">$1</blockquote>')
-        .replace(/^>> (.+$)/gm, '<blockquote class="ai-quote nested">$1</blockquote>')
-        
-        // Handle footnotes
-        .replace(/\[\^(\w+)\]/g, '<sup class="footnote-ref">$1</sup>')
-        
-        // Handle different types of lists
-        // Numbered lists with various formats
-        .replace(/^(\d+[\.\)]\s+)(.*$)/gm, '<div class="list-item numbered"><span class="list-marker">$1</span>$2</div>')
-        
-        // Bullet lists with -, *, or •
-        .replace(/^[-*•]\s+(.+$)/gm, '<div class="list-item bullet"><span class="list-marker">•</span> $1</div>')
-        
-        // Task lists (checkboxes)
-        .replace(/^[-*]\s*\[([ x])\]\s+(.+$)/gm, (match, checked, text) => {
-            const isChecked = checked === 'x';
-            return `<div class="list-item task ${isChecked ? 'completed' : ''}">
-                <span class="checkbox ${isChecked ? 'checked' : ''}">
-                    ${isChecked ? '✓' : '○'}
-                </span>
-                ${text}
-            </div>`;
-        })
-        
         // Handle special formatting for structured content
         .replace(/\*\*([^:]*?):\*\*\s*(.*?)(?=\n|$)/g, '<div class="info-line"><span class="info-label">$1:</span> <span class="info-value">$2</span></div>')
         
-        // Convert line breaks to paragraphs (avoiding code blocks)
-        .split(/\n\s*\n/)
+        // Convert remaining content to paragraphs
+        .split('</p><p>')
         .map(paragraph => {
-            if (paragraph.includes('<div class="code-block">') || 
-                paragraph.includes('<h') || 
-                paragraph.includes('<div class="list-item">') ||
-                paragraph.includes('<hr') ||
-                paragraph.includes('<blockquote') ||
-                paragraph.includes('<div class="info-line">')) {
-                return paragraph;
+            const trimmed = paragraph.trim();
+            if (!trimmed) return '';
+            
+            // Don't wrap already formatted elements
+            if (trimmed.includes('<h') || 
+                trimmed.includes('<ul') || 
+                trimmed.includes('<ol') || 
+                trimmed.includes('<div class="code-block">') ||
+                trimmed.includes('<hr') ||
+                trimmed.includes('<blockquote') ||
+                trimmed.includes('<div class="task-item">') ||
+                trimmed.includes('<div class="info-line">')) {
+                return trimmed;
             }
-            return paragraph.trim() ? `<p>${paragraph.trim()}</p>` : '';
+            
+            return trimmed ? `<p class="ai-paragraph">${trimmed}</p>` : '';
         })
         .filter(p => p)
         .join('');
