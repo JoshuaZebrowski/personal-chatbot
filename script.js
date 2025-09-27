@@ -11,6 +11,9 @@ const messagesContainer = document.getElementById('messages');
 const userInput = document.getElementById('userInput');
 const sendButton = document.getElementById('sendButton');
 const loadingDiv = document.getElementById('loading');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const sessionList = document.getElementById('sessionList');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async function() {
@@ -20,6 +23,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Load existing conversation if available
     await loadConversationHistory();
+    
+    // Initialize sidebar
+    await initializeSidebar();
     
     // Enable sending message with Enter key
     userInput.addEventListener('keydown', function(event) {
@@ -276,6 +282,9 @@ async function sendMessage() {
             
             // Add AI response to chat UI
             addMessage(aiResponse, 'ai');
+            
+            // Refresh sidebar to show updated session
+            await refreshSessionList();
         } else {
             throw new Error('No response received from the AI model');
         }
@@ -297,6 +306,9 @@ async function clearChat() {
     if (chatHistory) {
         await chatHistory.startNewSession();
         console.log('Started new chat session:', chatHistory.getCurrentSession().sessionId);
+        
+        // Refresh sidebar to show new session
+        await refreshSessionList();
     }
 }
 
@@ -327,3 +339,228 @@ window.sendMessage = sendMessage;
 window.clearChat = clearChat;
 window.getCurrentSessionInfo = getCurrentSessionInfo;
 window.listAllSessions = listAllSessions;
+
+// Sidebar functions
+window.toggleSidebar = toggleSidebar;
+window.closeSidebar = closeSidebar;
+window.startNewChat = startNewChat;
+window.clearAllSessions = clearAllSessions;
+window.loadSession = loadSessionFromSidebar;
+window.deleteSessionFromSidebar = deleteSessionFromSidebar;
+
+// ===== SIDEBAR FUNCTIONALITY =====
+
+// Initialize sidebar with session list
+async function initializeSidebar() {
+    await refreshSessionList();
+}
+
+// Toggle sidebar visibility
+function toggleSidebar() {
+    const isOpen = sidebar.classList.contains('open');
+    if (isOpen) {
+        closeSidebar();
+    } else {
+        openSidebar();
+    }
+}
+
+// Open sidebar
+async function openSidebar() {
+    sidebar.classList.add('open');
+    sidebarOverlay.classList.add('visible');
+    await refreshSessionList();
+}
+
+// Close sidebar
+function closeSidebar() {
+    sidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('visible');
+}
+
+// Start new chat session
+async function startNewChat() {
+    await clearChat();
+    await refreshSessionList();
+    closeSidebar();
+}
+
+// Load a session from sidebar
+async function loadSessionFromSidebar(sessionId) {
+    try {
+        console.log('Loading session:', sessionId);
+        
+        // Load the session using the chat history manager
+        const session = await chatHistory.loadSession(sessionId);
+        
+        if (session) {
+            console.log('Session loaded successfully:', session.sessionId);
+            
+            // Clear current messages except system message
+            const systemMessage = messagesContainer.querySelector('.system-message');
+            messagesContainer.innerHTML = '';
+            if (systemMessage) {
+                messagesContainer.appendChild(systemMessage);
+            }
+
+            // Load session messages into UI
+            if (session.messages && session.messages.length > 0) {
+                session.messages.forEach(msg => {
+                    if (msg.user) {
+                        addMessage(msg.user, 'user');
+                    }
+                    if (msg.system) {
+                        addMessage(msg.system, 'ai');
+                    }
+                });
+            }
+
+            // Update session list to show active session
+            await refreshSessionList();
+            closeSidebar();
+            
+            console.log('Successfully loaded session with', session.messages.length, 'messages');
+        } else {
+            console.error('Session not found:', sessionId);
+            addMessage('Error: Chat session not found.', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading session:', error);
+        addMessage('Error loading chat session.', 'error');
+    }
+}
+
+// Delete session from sidebar
+async function deleteSessionFromSidebar(sessionId, event) {
+    if (event) {
+        event.stopPropagation(); // Prevent triggering session load
+    }
+    
+    if (confirm('Are you sure you want to delete this chat session?')) {
+        try {
+            await chatHistory.deleteSession(sessionId);
+            await refreshSessionList();
+            console.log('Deleted session:', sessionId);
+        } catch (error) {
+            console.error('Error deleting session:', error);
+        }
+    }
+}
+
+// Clear all sessions
+async function clearAllSessions() {
+    if (confirm('Are you sure you want to delete all chat history? This cannot be undone.')) {
+        try {
+            const sessions = await chatHistory.listAllSessions();
+            for (const session of sessions) {
+                await chatHistory.deleteSession(session.sessionId);
+            }
+            
+            // Start fresh session
+            await startNewChat();
+            await refreshSessionList();
+            
+            console.log('All sessions cleared');
+        } catch (error) {
+            console.error('Error clearing all sessions:', error);
+        }
+    }
+}
+
+// Refresh the session list in sidebar
+async function refreshSessionList() {
+    try {
+        const sessions = await chatHistory.listAllSessions();
+        const currentSessionId = chatHistory.getCurrentSession()?.sessionId;
+        
+        if (sessions.length === 0) {
+            sessionList.innerHTML = `
+                <div class="empty-sessions">
+                    <p>No chat history yet</p>
+                    <small>Start a conversation to see your chat history here</small>
+                </div>
+            `;
+            return;
+        }
+
+        sessionList.innerHTML = sessions.map(session => {
+            const isActive = session.sessionId === currentSessionId;
+            const date = new Date(session.updatedAt).toLocaleDateString();
+            const time = new Date(session.updatedAt).toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            // Get preview text from first user message
+            let previewText = 'New Chat';
+            if (session.messageCount > 0) {
+                // We'll need to load the session to get the first message
+                // For now, just use a generic preview
+                previewText = `Chat with ${session.messageCount} messages`;
+            }
+
+            return `
+                <div class="session-item ${isActive ? 'active' : ''}" 
+                     data-session-id="${session.sessionId}"
+                     style="cursor: pointer;">
+                    <div class="session-preview">${previewText}</div>
+                    <div class="session-meta">
+                        <span class="session-date">${date} ${time}</span>
+                        <div class="session-actions">
+                            <button class="session-delete" 
+                                    data-session-id="${session.sessionId}"
+                                    title="Delete Session">×</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Add event listeners after creating the HTML
+        sessionList.querySelectorAll('.session-item').forEach(item => {
+            const sessionId = item.getAttribute('data-session-id');
+            item.addEventListener('click', (e) => {
+                // Don't trigger if clicking on delete button
+                if (!e.target.classList.contains('session-delete')) {
+                    loadSessionFromSidebar(sessionId);
+                }
+            });
+        });
+
+        // Add delete button event listeners
+        sessionList.querySelectorAll('.session-delete').forEach(button => {
+            const sessionId = button.getAttribute('data-session-id');
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteSessionFromSidebar(sessionId, e);
+            });
+        });
+
+    } catch (error) {
+        console.error('Error refreshing session list:', error);
+        sessionList.innerHTML = `
+            <div class="empty-sessions">
+                <p>Error loading sessions</p>
+                <small>Please try refreshing the page</small>
+            </div>
+        `;
+    }
+}
+
+// Enhanced session preview (load first message for better preview)
+async function getSessionPreview(sessionId) {
+    try {
+        const sessionData = await chatHistory.storageProvider.loadSession(sessionId);
+        if (sessionData && sessionData.messages.length > 0) {
+            const firstMessage = sessionData.messages[0];
+            if (firstMessage.user) {
+                return firstMessage.user.length > 50 
+                    ? firstMessage.user.substring(0, 47) + '...'
+                    : firstMessage.user;
+            }
+        }
+        return 'New Chat';
+    } catch (error) {
+        return 'Chat Session';
+    }
+}
