@@ -1,8 +1,10 @@
 // Import configuration
 import { CONFIG } from './config.js';
+import { ChatHistoryManager } from './chat-history-manager.js';
 
 // Global variables
 let isLoading = false;
+let chatHistory = null;
 
 // DOM elements
 const messagesContainer = document.getElementById('messages');
@@ -11,7 +13,14 @@ const sendButton = document.getElementById('sendButton');
 const loadingDiv = document.getElementById('loading');
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Initialize chat history manager
+    chatHistory = new ChatHistoryManager();
+    await chatHistory.initialize();
+    
+    // Load existing conversation if available
+    await loadConversationHistory();
+    
     // Enable sending message with Enter key
     userInput.addEventListener('keydown', function(event) {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -169,50 +178,73 @@ function setLoading(loading) {
     sendButton.textContent = loading ? 'Sending...' : 'Send';
 }
 
+// Function to load conversation history from storage
+async function loadConversationHistory() {
+    try {
+        const session = chatHistory.getCurrentSession();
+        if (session && session.messages.length > 0) {
+            // Clear existing messages except system message
+            const systemMessage = messagesContainer.querySelector('.system-message');
+            messagesContainer.innerHTML = '';
+            if (systemMessage) {
+                messagesContainer.appendChild(systemMessage);
+            }
+
+            // Load all previous messages
+            session.messages.forEach(msg => {
+                if (msg.user) {
+                    addMessage(msg.user, 'user');
+                }
+                if (msg.system) {
+                    addMessage(msg.system, 'ai');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading conversation history:', error);
+    }
+}
+
 // Function to send message to Azure OpenAI
 async function sendMessage() {
-    console.log('🚀 sendMessage() called');
     const message = userInput.value.trim();
-    console.log('📝 User message:', message);
 
     // Validation
     if (!message) {
-        console.warn('⚠️ Empty message, showing error');
         addMessage('Please enter a message.', 'error');
         return;
     }
 
     if (isLoading) {
-        console.log('⏳ Already loading, ignoring request');
         return;
     }
 
-    // Add user message to chat
+    // Add user message to chat history
+    await chatHistory.addUserMessage(message);
+    
+    // Add user message to chat UI
     addMessage(message, 'user');
     userInput.value = '';
     setLoading(true);
 
     try {
-        // Prepare the request
+        // Get conversation history for context
+        const conversationMessages = chatHistory.getConversationHistory();
+        
+        // Add the current message to the conversation
+        conversationMessages.push({
+            role: "user",
+            content: message
+        });
+
+        // Prepare the request with full conversation history
         const requestBody = {
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a helpful assistant."
-                },
-                {
-                    role: "user", 
-                    content: message
-                }
-            ],
+            messages: conversationMessages,
             max_tokens: 16384,
             temperature: 1,
             top_p: 1,
             model: CONFIG.AZURE_API_MODEL
         };
-
-        console.log('📤 Sending request to:', CONFIG.AZURE_API_ENDPOINT);
-        console.log('📋 Request body:', requestBody);
 
         // Make the API call using environment variable API key
         const response = await fetch(CONFIG.AZURE_API_ENDPOINT, {
@@ -224,33 +256,27 @@ async function sendMessage() {
             body: JSON.stringify(requestBody)
         });
 
-        console.log('📥 Response status:', response.status, response.statusText);
-
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.error('❌ API request failed:', {
-                status: response.status,
-                statusText: response.statusText,
-                errorData
-            });
             throw new Error(`API request failed: ${response.status} ${response.statusText}. ${errorData.error?.message || ''}`);
         }
 
         const data = await response.json();
-        console.log('✅ API response data:', data);
 
         // Handle the response
         if (data.error) {
-            console.error('❌ API returned error:', data.error);
             throw new Error(data.error.message || 'Unknown API error');
         }
 
         if (data.choices && data.choices.length > 0) {
             const aiResponse = data.choices[0].message.content;
-            console.log('🤖 AI response:', aiResponse);
+            
+            // Add system response to chat history
+            await chatHistory.addSystemResponse(aiResponse);
+            
+            // Add AI response to chat UI
             addMessage(aiResponse, 'ai');
         } else {
-            console.error('❌ No choices in response');
             throw new Error('No response received from the AI model');
         }
 
@@ -263,11 +289,41 @@ async function sendMessage() {
 }
 
 // Function to clear chat (optional feature)
-function clearChat() {
+async function clearChat() {
     const messages = messagesContainer.querySelectorAll('.message:not(.system-message)');
     messages.forEach(message => message.remove());
+    
+    // Start a new chat session
+    if (chatHistory) {
+        await chatHistory.startNewSession();
+        console.log('Started new chat session:', chatHistory.getCurrentSession().sessionId);
+    }
+}
+
+// Function to get current session info (for debugging/development)
+function getCurrentSessionInfo() {
+    if (chatHistory && chatHistory.getCurrentSession()) {
+        const session = chatHistory.getCurrentSession();
+        return {
+            sessionId: session.sessionId,
+            messageCount: session.messages.length,
+            createdAt: session.createdAt,
+            updatedAt: session.updatedAt
+        };
+    }
+    return null;
+}
+
+// Function to list all sessions (for future UI features)
+async function listAllSessions() {
+    if (chatHistory) {
+        return await chatHistory.listAllSessions();
+    }
+    return [];
 }
 
 // Make functions globally available
 window.sendMessage = sendMessage;
 window.clearChat = clearChat;
+window.getCurrentSessionInfo = getCurrentSessionInfo;
+window.listAllSessions = listAllSessions;
