@@ -12,8 +12,8 @@ export class ChatHistoryManager {
         if (this.initialized) return;
 
         try {
-            // Create a new session for this browser session
-            await this.startNewSession();
+            // Create a new session for this browser session (but don't save until first message)
+            this.currentSession = new ChatSession();
             this.initialized = true;
             console.log('Chat history manager initialized with session:', this.currentSession.sessionId);
         } catch (error) {
@@ -25,8 +25,12 @@ export class ChatHistoryManager {
     }
 
     async startNewSession() {
+        // Clean up current session if it's empty
+        await this.cleanupEmptySession();
+        
+        // Create new session but don't save until first message
         this.currentSession = new ChatSession();
-        await this.saveCurrentSession();
+        console.log('Started new session (will save on first message):', this.currentSession.sessionId);
         return this.currentSession;
     }
 
@@ -41,6 +45,19 @@ export class ChatHistoryManager {
         } catch (error) {
             console.error('Failed to load session:', error);
             return null;
+        }
+    }
+
+    async cleanupEmptySession() {
+        if (this.currentSession && this.currentSession.messages.length === 0) {
+            // Try to delete the empty session from storage
+            try {
+                await this.storageProvider.deleteSession(this.currentSession.sessionId);
+                console.log('Cleaned up empty session:', this.currentSession.sessionId);
+            } catch (error) {
+                // Session might not exist in storage yet, which is fine
+                console.log('Empty session cleanup (session not in storage):', this.currentSession.sessionId);
+            }
         }
     }
 
@@ -65,8 +82,16 @@ export class ChatHistoryManager {
             this.currentSession = new ChatSession();
         }
 
+        const isFirstMessage = this.currentSession.messages.length === 0;
         const chatMessage = this.currentSession.addMessage(message);
+        
+        // Save the session (this is the first time we save if it's the first message)
         await this.saveCurrentSession();
+        
+        if (isFirstMessage) {
+            console.log('Saved session on first user message:', this.currentSession.sessionId);
+        }
+        
         return chatMessage;
     }
 
@@ -126,7 +151,7 @@ export class ChatHistoryManager {
     // Method to switch storage providers (for future Cosmos DB integration)
     async switchStorageProvider(newProvider) {
         // Save current session with old provider before switching
-        if (this.currentSession) {
+        if (this.currentSession && this.currentSession.messages.length > 0) {
             await this.saveCurrentSession();
         }
 

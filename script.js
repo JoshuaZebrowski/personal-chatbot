@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     chatHistory = new ChatHistoryManager();
     await chatHistory.initialize();
     
+    // Clean up any existing empty sessions from previous visits
+    await cleanupEmptySessions();
+    
     // Load existing conversation if available
     await loadConversationHistory();
     
@@ -184,6 +187,27 @@ function setLoading(loading) {
     sendButton.textContent = loading ? 'Sending...' : 'Send';
 }
 
+// Clean up any empty sessions on startup
+async function cleanupEmptySessions() {
+    try {
+        const sessions = await chatHistory.listAllSessions();
+        let cleanedCount = 0;
+        
+        for (const sessionSummary of sessions) {
+            if (sessionSummary.messageCount === 0) {
+                await chatHistory.deleteSession(sessionSummary.sessionId);
+                cleanedCount++;
+            }
+        }
+        
+        if (cleanedCount > 0) {
+            console.log(`Cleaned up ${cleanedCount} empty sessions on startup`);
+        }
+    } catch (error) {
+        console.error('Error cleaning up empty sessions:', error);
+    }
+}
+
 // Function to load conversation history from storage
 async function loadConversationHistory() {
     try {
@@ -302,12 +326,12 @@ async function clearChat() {
     const messages = messagesContainer.querySelectorAll('.message:not(.system-message)');
     messages.forEach(message => message.remove());
     
-    // Start a new chat session
+    // Start a new chat session (will clean up empty current session)
     if (chatHistory) {
         await chatHistory.startNewSession();
         console.log('Started new chat session:', chatHistory.getCurrentSession().sessionId);
         
-        // Refresh sidebar to show new session
+        // Refresh sidebar to show updated session list (empty sessions should be gone)
         await refreshSessionList();
     }
 }
@@ -389,6 +413,9 @@ async function startNewChat() {
 async function loadSessionFromSidebar(sessionId) {
     try {
         console.log('Loading session:', sessionId);
+        
+        // Clean up current empty session before loading new one
+        await chatHistory.cleanupEmptySession();
         
         // Load the session using the chat history manager
         const session = await chatHistory.loadSession(sessionId);
