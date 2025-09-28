@@ -7,7 +7,6 @@
     "node": "22.x"
   },
   "scripts": {
-    "build": "node build.js",
     "start": "node ./bin/www",
     "legacy-start": "node start-servers.js",
     "dev": "SET DEBUG=personal-chatbot:* && node ./bin/www"

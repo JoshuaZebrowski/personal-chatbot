@@ -67,4 +67,7 @@ jobs:
           slot-name: 'Production'
           package: deployment.zip
           clean: true
+        env:
+          SCM_DO_BUILD_DURING_DEPLOYMENT: false
+          WEBSITE_RUN_FROM_PACKAGE: 1
           
