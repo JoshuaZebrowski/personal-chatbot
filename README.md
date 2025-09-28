@@ -1,54 +1,82 @@
 # Personal AI Chatbot
 
-A simple web interface for interacting with Azure Foundry deployed GPT-5 model.
+A full-featured web application for interacting with Azure Foundry deployed GPT-5 model, with persistent chat session storage using Azure Cosmos DB.
 
-## Features
+### Core Functionality
+- **Clean, modern web interface** with responsive design
+- **Direct integration with Azure OpenAI GPT-5 model**
+- **Session-based conversations** with persistent history
 
-- Clean, modern web interface
-- Direct integration with Azure OpenAI service
-- Environment variable-based API key management
-- Responsive design for mobile and desktop
-- Real-time chat interface
+### Data Persistence
+- **Azure Cosmos DB integration** for cloud storage
+- **Automatic session persistence** across page refreshes and browser restarts
+- **Session management**: Create, rename, delete, and switch between chat sessions
+- **Smart fallback** to localStorage if Cosmos DB is unavailable
+
+### Technical Stack
+- **Consistent Node.js architecture**
+  - Frontend: Node.js static file server with ES6 modules
+  - Backend: Express.js API server for Cosmos DB operations
+- **Environment variable-based configuration management**
+- **CORS-enabled API** for secure cross-origin requests
+
+## Prerequisites
+
+- Node.js (version 14 or higher)
+- Azure OpenAI API access (GPT-5 model)
+- Azure Cosmos DB account (Serverless mode supported)
 
 ## Setup
 
-1. Copy `.env.example` to `.env`:
-   ```bash
-   copy .env.example .env
-   ```
+### 1. Environment Configuration
 
-2. Edit `.env` and add your actual configuration:
-   ```
-   AZURE_API_KEY=your-actual-azure-api-key
-   AZURE_API_ENDPOINT=https://your-endpoint.cognitiveservices.azure.com/openai/deployments/your-deployment/chat/completions?api-version=your-api-version
-   AZURE_API_MODEL=gpt-5-chat
-   AZURE_API_DEPLOYMENT=your-deployment-name
-   AZURE_API_VERSION=your-api-version
-   ```
+Copy the example environment file:
+```bash
+copy .env.example .env
+```
 
-3. Build the configuration:
-   ```bash
-   npm run build
-   ```
+Edit `.env` with your actual configuration:
+```env
+# Azure OpenAI Configuration
+AZURE_API_KEY=your-actual-azure-api-key
+AZURE_API_ENDPOINT=https://your-endpoint.cognitiveservices.azure.com/openai/deployments/gpt-5-chat/chat/completions?api-version=2025-01-01-preview
+AZURE_API_MODEL=gpt-5-chat
+AZURE_API_DEPLOYMENT=gpt-5-chat
+AZURE_API_VERSION=2025-01-01-preview
 
-4. Serve the website:
-   ```bash
-   npm run serve
-   ```
+# Cosmos DB Configuration
+USE_COSMOS_DB=true
+COSMOS_DB_ENDPOINT=https://your-cosmosdb-account.documents.azure.com:443/
+COSMOS_DB_KEY=your-cosmos-db-key
+COSMOS_DB_DATABASE=your-database-name
+COSMOS_DB_CONTAINER=sessions
+```
 
-5. Open http://localhost:8000 in your browser
+### 2. Install Dependencies
 
-## Security Note
+```bash
+npm install
+```
 
-- The API key is now managed through environment variables for better security
-- Never commit your `.env` file or `config.js` with real API keys to version control
-- The generated `config.js` file is automatically ignored by git
+### 3. Build Configuration
 
-## Usage
+```bash
+npm run build
+```
 
-1. Set up your environment variables (see Setup section)
-2. Build and serve the application
+## Running the Application
 
-## Browser Compatibility
+The application requires two servers to run:
 
-Works with all modern browsers that support ES6 modules and fetch API.
+### Option 1: Manual Start (Recommended for Development)
+
+**Terminal 1 - Start Cosmos DB API Server:**
+```bash
+node cosmos-api-server.js
+```
+
+**Terminal 2 - Start Frontend Server:**
+```bash
+npm run serve
+```
+
