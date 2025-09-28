@@ -4,6 +4,8 @@
 
 # Generated config file
 config.js
+# But allow the deploy_clean version
+!deploy_clean/lib/config.js
 
 # Dependencies
 node_modules/

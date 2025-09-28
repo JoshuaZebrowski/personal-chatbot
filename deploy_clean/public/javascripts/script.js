@@ -25,10 +25,10 @@ async function initializeStorageProvider() {
     try {
         // Test the connection
         await cosmosProvider.ensureClientReady();
-        console.log('✅ Cosmos DB connected successfully!');
+        console.log('Cosmos DB connected successfully!');
         return cosmosProvider;
     } catch (error) {
-        console.error('❌ Cosmos DB connection failed:', error.message);
+        console.error('Cosmos DB connection failed:', error.message);
         throw new Error('Failed to connect to Cosmos DB. Please ensure the API server is running.');
     }
 }
