@@ -23,11 +23,21 @@ jobs:
         with:
           node-version: '22.x'
 
+      - name: npm install and build
+        run: |
+          npm install --production --prefix ./deploy_clean
+          
+      - name: Zip deployment package
+        run: |
+          cd deploy_clean
+          zip -r ../deployment.zip .
+          cd ..
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: deployment.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -55,5 +65,6 @@ jobs:
         with:
           app-name: 'josh-chatbot-web-app'
           slot-name: 'Production'
-          package: .
+          package: deployment.zip
+          clean: true
           
