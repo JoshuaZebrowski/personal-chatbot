@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/stylesheets/styles.css">
+</head>
+<body>
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+    </button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3>Chat History</h3>
+            <button class="new-chat-btn" onclick="startNewChat()" title="Start New Chat">
+                <span>+</span> New Chat
+            </button>
+        </div>
+        
+        <div class="sidebar-content">
+            <div class="session-list" id="sessionList">
+                <!-- Session items will be populated here -->
+            </div>
+        </div>
+        
+        <div class="sidebar-footer">
+            <button class="clear-all-btn" onclick="clearAllSessions()" title="Clear All History">
+                Clear All History
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <div class="container">
+        <header>
+            <h1>Josh's Chatbot</h1>
+        </header>
+
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message system-message">
+                    Ask me anything...
+                </div>
+            </div>
+
+            <div class="input-container">
+                <textarea id="userInput" placeholder="Type your message here..." rows="3"></textarea>
+                <button id="sendButton" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <span>Hmmm I'm thinking...</span>
+        </div>
+    </div>
+
+    <script type="module" src="/javascripts/script.js"></script>
+</body>
+</html>

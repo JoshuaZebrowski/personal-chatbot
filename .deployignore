@@ -1,0 +1,51 @@
+# Deployment ignore file - excludes files from Azure deployment
+
+# Environment files (sensitive)
+.env*
+
+# Dependencies (will be installed on server)  
+node_modules
+**/node_modules
+
+# Development and backup files
+.vscode
+.git
+.gitignore
+.deployment
+temp_backup
+api_backup
+deploy
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test files
+test-*
+
+# Build artifacts
+dist
+build
+
+# IDE files
+.idea
+
+# Temporary files
+*.tmp
+*.temp
+
+# Original files (before restructuring - no longer needed)
+cosmos-api-server.js
+serve.js
+start-servers.js
+index.html
+styles.css
+script.js
+chat-history-manager.js
+chat-models.js
+storage-providers.js
+config.js

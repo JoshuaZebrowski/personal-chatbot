@@ -1,0 +1,24 @@
+# Azure Web App Application Settings Template
+# These should be configured in the Azure Portal under Configuration > Application settings
+
+# Required: Set this to production for Azure deployment
+NODE_ENV=production
+
+# Required: Your Azure OpenAI configuration
+AZURE_API_KEY=your_azure_openai_api_key_here
+AZURE_API_ENDPOINT=your_azure_openai_endpoint_here
+AZURE_API_MODEL=gpt-5-chat
+AZURE_API_DEPLOYMENT=gpt-5-chat
+AZURE_API_VERSION=2025-01-01-preview
+
+# Required: Your Cosmos DB configuration
+COSMOS_DB_ENDPOINT=your_cosmos_db_endpoint_here
+COSMOS_DB_KEY=your_cosmos_db_key_here
+COSMOS_DB_DATABASE=josh-chatbot-cosmos-db
+COSMOS_DB_CONTAINER=sessions
+
+# Azure Web App automatically sets PORT, but you can override if needed
+# PORT=3000
+
+# Optional: Enable debug logging
+# DEBUG=personal-chatbot:*
