@@ -63,18 +63,15 @@ npm install
 ```bash
 npm run build
 ```
+Note: you will have to rerun this build command everytime you change your environment variables
 
 ## Running the Application
 
 The application requires two servers to run:
+The frontend server that will serve the web application
+The API server that will handles operations with Azure Cosmos DB
 
-**Terminal 1 - Start Cosmos DB API Server:**
+**Run script to start both servers**
 ```bash
-node cosmos-api-server.js
+npm run start
 ```
-
-**Terminal 2 - Start Frontend Server:**
-```bash
-npm run serve
-```
-
