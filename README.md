@@ -128,20 +128,7 @@ The application will be available at `http://localhost:3000`
 4. **Set up GitHub Actions**:
    - The repository includes `.github/workflows/azure-web-app_josh-chatbot-web-app.yml`
    - Configure deployment credentials in your GitHub repository secrets
-   - Push changes to the `azure-web-app` branch to trigger deployment
-
-### Manual Deployment
-
-1. **Prepare deployment package**:
-   ```bash
-   cd deploy_clean
-   zip -r ../deployment.zip .
-   ```
-
-2. **Upload to Azure App Service**:
-   - Use Azure CLI, VS Code extension, or Azure portal
-   - Deploy the `deployment.zip` file
-   - Ensure environment variables are configured
+   - Push changes to branch to trigger deployment
 
 ## API Endpoints
 
