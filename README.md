@@ -67,9 +67,7 @@ Note: you will have to rerun this build command everytime you change your enviro
 
 ## Running the Application
 
-The application requires two servers to run:
-The frontend server that will serve the web application
-The API server that will handles operations with Azure Cosmos DB
+The application requires two servers to run: the frontend server that will serve the web application, and the API server that will handles operations with Azure Cosmos DB
 
 **Run script to start both servers**
 ```bash
