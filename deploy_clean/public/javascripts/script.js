@@ -349,14 +349,15 @@ async function sendMessage() {
             model: CONFIG.AZURE_API_MODEL
         };
 
-        // Make the API call using environment variable API key
-        const response = await fetch(CONFIG.AZURE_API_ENDPOINT, {
+        // Make the API call to our secure server-side endpoint
+        const response = await fetch(`${CONFIG.API_BASE_URL}/chat`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'api-key': CONFIG.AZURE_API_KEY
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify({
+                messages: conversationMessages
+            })
         });
 
         if (!response.ok) {

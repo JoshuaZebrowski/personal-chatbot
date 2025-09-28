@@ -22,6 +22,58 @@ router.get('/health', (req, res) => {
     res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
+// Configuration endpoint - no longer needed since client doesn't need server config
+// Keeping for backward compatibility but returns minimal info
+router.get('/config', (req, res) => {
+    res.json({ 
+        status: 'Config loaded from environment variables',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// AI Chat endpoint - proxy to Azure OpenAI (keeps API keys secure)
+router.post('/chat', async (req, res) => {
+    try {
+        const { messages } = req.body;
+        
+        if (!messages || !Array.isArray(messages)) {
+            return res.status(400).json({ error: 'Messages array is required' });
+        }
+
+        // All values come from Azure App Service environment variables
+        const azureEndpoint = process.env.AZURE_API_ENDPOINT;
+        const azureApiKey = process.env.AZURE_API_KEY;
+
+        if (!azureEndpoint || !azureApiKey) {
+            console.error('Missing Azure API configuration in environment variables');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+
+        const response = await fetch(azureEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'api-key': azureApiKey
+            },
+            body: JSON.stringify({
+                messages: messages,
+                max_tokens: 2000,
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Azure API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        console.error('Error calling Azure OpenAI:', error);
+        res.status(500).json({ error: 'Failed to get AI response' });
+    }
+});
+
 // Save session
 router.post('/sessions', async (req, res) => {
     try {
