@@ -129,34 +129,140 @@ export class LocalStorageProvider extends StorageProvider {
     }
 }
 
-// Future implementation placeholder for Cosmos DB
+// Cosmos DB storage implementation
 export class CosmosDBProvider extends StorageProvider {
-    constructor(endpoint, key, databaseName, containerName) {
+    constructor() {
         super();
-        this.endpoint = endpoint;
-        this.key = key;
-        this.databaseName = databaseName;
-        this.containerName = containerName;
-        // TODO: Initialize Cosmos DB client
+        this.apiBaseUrl = 'http://localhost:3001/api';
+        this.userID = 'anonymous'; // You can make this dynamic later for multi-user support
+        this.initialized = false;
+    }
+
+    async initializeClient() {
+        try {
+            // Test if the API server is running
+            const response = await fetch(`${this.apiBaseUrl}/health`);
+            if (!response.ok) {
+                throw new Error('Cosmos DB API server is not responding');
+            }
+            this.initialized = true;
+            console.log('Cosmos DB API client initialized successfully');
+        } catch (error) {
+            console.error('Failed to connect to Cosmos DB API server:', error);
+            throw error;
+        }
+    }
+
+    async ensureClientReady() {
+        if (!this.initialized) {
+            await this.initializeClient();
+        }
     }
 
     async saveSession(session) {
-        // TODO: Implement Cosmos DB save
-        throw new Error('Cosmos DB implementation not yet available');
+        try {
+            await this.ensureClientReady();
+            
+            const response = await fetch(`${this.apiBaseUrl}/sessions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sessionId: session.sessionId,
+                    sessionData: {
+                        sessionId: session.sessionId,
+                        name: session.name,
+                        messages: session.messages,
+                        createdAt: session.createdAt,
+                        updatedAt: session.updatedAt
+                    },
+                    userID: this.userID
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            console.log('Session saved to Cosmos DB:', session.sessionId);
+            return true;
+        } catch (error) {
+            console.error('Error saving session to Cosmos DB:', error);
+            throw new Error('Failed to save chat session to Cosmos DB');
+        }
     }
 
     async loadSession(sessionId) {
-        // TODO: Implement Cosmos DB load
-        throw new Error('Cosmos DB implementation not yet available');
+        try {
+            await this.ensureClientReady();
+            
+            const response = await fetch(`${this.apiBaseUrl}/sessions/${sessionId}?userID=${encodeURIComponent(this.userID)}`);
+            
+            if (response.status === 404) {
+                return null; // Session not found
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Session loaded from Cosmos DB:', sessionId);
+            return data.sessionData;
+        } catch (error) {
+            console.error('Error loading session from Cosmos DB:', error);
+            throw new Error('Failed to load chat session from Cosmos DB');
+        }
     }
 
     async deleteSession(sessionId) {
-        // TODO: Implement Cosmos DB delete
-        throw new Error('Cosmos DB implementation not yet available');
+        try {
+            await this.ensureClientReady();
+            
+            const response = await fetch(`${this.apiBaseUrl}/sessions/${sessionId}?userID=${encodeURIComponent(this.userID)}`, {
+                method: 'DELETE'
+            });
+
+            if (response.status === 404) {
+                return true; // Session already doesn't exist
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            console.log('Session deleted from Cosmos DB:', sessionId);
+            return true;
+        } catch (error) {
+            console.error('Error deleting session from Cosmos DB:', error);
+            throw new Error('Failed to delete chat session from Cosmos DB');
+        }
     }
 
     async listSessions() {
-        // TODO: Implement Cosmos DB list
-        throw new Error('Cosmos DB implementation not yet available');
+        try {
+            await this.ensureClientReady();
+            
+            const response = await fetch(`${this.apiBaseUrl}/sessions?userID=${encodeURIComponent(this.userID)}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const sessions = await response.json();
+            console.log('Sessions listed from Cosmos DB:', sessions.length);
+            
+            return sessions.map(session => ({
+                sessionId: session.sessionId,
+                name: session.name,
+                createdAt: session.createdAt,
+                updatedAt: session.updatedAt,
+                messageCount: session.messages ? session.messages.length : 0
+            }));
+        } catch (error) {
+            console.error('Error listing sessions from Cosmos DB:', error);
+            return [];
+        }
     }
 }

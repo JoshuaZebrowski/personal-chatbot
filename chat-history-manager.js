@@ -12,24 +12,42 @@ export class ChatHistoryManager {
         if (this.initialized) return;
 
         try {
-            // Create a new session for this browser session (but don't save until first message)
+            // Try to restore the last active session from browser storage
+            const lastSessionId = sessionStorage.getItem('chatbot_current_session_id');
+            
+            if (lastSessionId) {
+                console.log('Attempting to restore session:', lastSessionId);
+                const restoredSession = await this.loadSession(lastSessionId);
+                if (restoredSession) {
+                    console.log('Successfully restored session:', lastSessionId, 'with', restoredSession.messages.length, 'messages');
+                    this.initialized = true;
+                    return;
+                }
+                console.log('Could not restore session:', lastSessionId, '- starting fresh');
+            }
+            
+            // If no session to restore, create a new one (but don't save until first message)
             this.currentSession = new ChatSession();
+            sessionStorage.setItem('chatbot_current_session_id', this.currentSession.sessionId);
             this.initialized = true;
-            console.log('Chat history manager initialized with session:', this.currentSession.sessionId);
+            console.log('Chat history manager initialized with new session:', this.currentSession.sessionId);
         } catch (error) {
             console.error('Failed to initialize chat history manager:', error);
             // Continue without history if initialization fails
             this.currentSession = new ChatSession();
+            sessionStorage.setItem('chatbot_current_session_id', this.currentSession.sessionId);
             this.initialized = true;
         }
     }
 
     async startNewSession() {
-        // Clean up current session if it's empty
-        await this.cleanupEmptySession();
+        // Don't cleanup the previous session - let user manage their own sessions
+        // await this.cleanupEmptySession();
         
         // Create new session but don't save until first message
         this.currentSession = new ChatSession();
+        // Remember this new session ID for page reloads
+        sessionStorage.setItem('chatbot_current_session_id', this.currentSession.sessionId);
         console.log('Started new session (will save on first message):', this.currentSession.sessionId);
         return this.currentSession;
     }
@@ -39,6 +57,8 @@ export class ChatHistoryManager {
             const sessionData = await this.storageProvider.loadSession(sessionId);
             if (sessionData) {
                 this.currentSession = ChatSession.fromJSON(sessionData);
+                // Remember this session ID for next page load
+                sessionStorage.setItem('chatbot_current_session_id', sessionId);
                 return this.currentSession;
             }
             return null;
@@ -50,12 +70,21 @@ export class ChatHistoryManager {
 
     async cleanupEmptySession() {
         if (this.currentSession && this.currentSession.messages.length === 0) {
-            // Try to delete the empty session from storage
+            // Only attempt cleanup if this session was never actually saved with messages
+            // Check if the session exists in storage first
             try {
+                const existingSession = await this.storageProvider.loadSession(this.currentSession.sessionId);
+                if (existingSession && existingSession.messages && existingSession.messages.length > 0) {
+                    // Session has messages in storage, don't delete it!
+                    console.log('Skipping cleanup - session has messages in storage:', this.currentSession.sessionId);
+                    return;
+                }
+                
+                // Session doesn't exist in storage or is truly empty, safe to clean up
                 await this.storageProvider.deleteSession(this.currentSession.sessionId);
                 console.log('Cleaned up empty session:', this.currentSession.sessionId);
             } catch (error) {
-                // Session might not exist in storage yet, which is fine
+                // Session might not exist in storage yet, which is fine for cleanup
                 console.log('Empty session cleanup (session not in storage):', this.currentSession.sessionId);
             }
         }
@@ -134,6 +163,8 @@ export class ChatHistoryManager {
             
             // If we deleted the current session, start a new one
             if (this.currentSession && this.currentSession.sessionId === sessionId) {
+                // Clear from sessionStorage since we're deleting the current session
+                sessionStorage.removeItem('chatbot_current_session_id');
                 await this.startNewSession();
             }
             

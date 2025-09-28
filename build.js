@@ -39,6 +39,12 @@ function buildConfig() {
     const deployment = process.env.AZURE_API_DEPLOYMENT;
     const apiVersion = process.env.AZURE_API_VERSION;
     
+    // Cosmos DB configuration
+    const cosmosEndpoint = process.env.COSMOS_DB_ENDPOINT;
+    const cosmosKey = process.env.COSMOS_DB_KEY;
+    const cosmosDatabase = process.env.COSMOS_DB_DATABASE;
+    const cosmosContainer = process.env.COSMOS_DB_CONTAINER;
+    
     // Validate all required environment variables
     if (!apiKey) {
         console.error('Error: AZURE_API_KEY environment variable is not set');
@@ -73,7 +79,13 @@ export const CONFIG = {
     AZURE_API_ENDPOINT: "${endpoint}",
     AZURE_API_MODEL: "${model}",
     AZURE_API_DEPLOYMENT: "${deployment}",
-    AZURE_API_VERSION: "${apiVersion}"
+    AZURE_API_VERSION: "${apiVersion}",
+    
+    // Cosmos DB Configuration (optional - will fallback to localStorage if not available)
+    COSMOS_DB_ENDPOINT: "${cosmosEndpoint || ''}",
+    COSMOS_DB_KEY: "${cosmosKey || ''}",
+    COSMOS_DB_DATABASE: "${cosmosDatabase || 'ChatbotDB'}",
+    COSMOS_DB_CONTAINER: "${cosmosContainer || 'Sessions'}"
 };`;
 
     fs.writeFileSync('config.js', configContent);

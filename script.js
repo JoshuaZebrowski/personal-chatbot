@@ -2,6 +2,7 @@
 import { CONFIG } from './config.js';
 import { ChatHistoryManager } from './chat-history-manager.js';
 import { ChatSession } from './chat-models.js';
+import { LocalStorageProvider, CosmosDBProvider } from './storage-providers.js';
 
 // Global variables
 let isLoading = false;
@@ -16,14 +17,36 @@ const sidebar = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
 const sessionList = document.getElementById('sessionList');
 
+// Initialize storage provider
+async function initializeStorageProvider() {
+    try {
+        // Check if Cosmos DB configuration is available
+        if (CONFIG.COSMOS_DB_ENDPOINT && CONFIG.COSMOS_DB_KEY) {
+            console.log('Initializing Cosmos DB storage provider...');
+            const cosmosProvider = new CosmosDBProvider();
+            
+            // Test the connection
+            await cosmosProvider.ensureClientReady();
+            console.log('✅ Cosmos DB connected successfully!');
+            return cosmosProvider;
+        }
+    } catch (error) {
+        console.warn('⚠️ Cosmos DB connection failed, falling back to localStorage:', error.message);
+    }
+    
+    // Fallback to localStorage
+    console.log('Using localStorage for data persistence');
+    return new LocalStorageProvider();
+}
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async function() {
-    // Initialize chat history manager
-    chatHistory = new ChatHistoryManager();
-    await chatHistory.initialize();
+    // Initialize storage provider
+    const storageProvider = await initializeStorageProvider();
     
-    // Clean up any existing empty sessions from previous visits
-    await cleanupEmptySessions();
+    // Initialize chat history manager with the storage provider
+    chatHistory = new ChatHistoryManager(storageProvider);
+    await chatHistory.initialize();
     
     // Load existing conversation if available
     await loadConversationHistory();
@@ -252,26 +275,7 @@ function setLoading(loading) {
     sendButton.textContent = loading ? 'Sending...' : 'Send';
 }
 
-// Clean up any empty sessions on startup
-async function cleanupEmptySessions() {
-    try {
-        const sessions = await chatHistory.listAllSessions();
-        let cleanedCount = 0;
-        
-        for (const sessionSummary of sessions) {
-            if (sessionSummary.messageCount === 0) {
-                await chatHistory.deleteSession(sessionSummary.sessionId);
-                cleanedCount++;
-            }
-        }
-        
-        if (cleanedCount > 0) {
-            console.log(`Cleaned up ${cleanedCount} empty sessions on startup`);
-        }
-    } catch (error) {
-        console.error('Error cleaning up empty sessions:', error);
-    }
-}
+// Note: Removed cleanupEmptySessions function - it was too aggressive and deleted valid sessions
 
 // Function to load conversation history from storage
 async function loadConversationHistory() {
