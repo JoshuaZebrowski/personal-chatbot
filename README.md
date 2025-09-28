@@ -68,8 +68,6 @@ npm run build
 
 The application requires two servers to run:
 
-### Option 1: Manual Start (Recommended for Development)
-
 **Terminal 1 - Start Cosmos DB API Server:**
 ```bash
 node cosmos-api-server.js
