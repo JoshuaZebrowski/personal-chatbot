@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     } catch (error) {
         console.error('Failed to initialize application:', error);
         // Show error message to user
-        addMessage('❌ Failed to connect to database. Please ensure the Cosmos DB API server is running on port 3001.', 'error');
+        addMessage('Failed to connect to database. Please ensure the Cosmos DB API server is running on port 3001.', 'error');
         
         // Disable input
         userInput.disabled = true;

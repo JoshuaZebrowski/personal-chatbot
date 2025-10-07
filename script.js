@@ -27,11 +27,11 @@ async function initializeStorageProvider() {
             
             // Test the connection
             await cosmosProvider.ensureClientReady();
-            console.log('✅ Cosmos DB connected successfully!');
+            console.log('Cosmos DB connected successfully!');
             return cosmosProvider;
         }
     } catch (error) {
-        console.warn('⚠️ Cosmos DB connection failed, falling back to localStorage:', error.message);
+        console.warn('Cosmos DB connection failed, falling back to localStorage:', error.message);
     }
     
     // Fallback to localStorage
